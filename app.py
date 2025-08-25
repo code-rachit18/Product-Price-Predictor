@@ -29,22 +29,31 @@ model = load_model()
 # Function to get LLM-based explanation
 # =======================
 def get_llm_explanation(product_name, category, about_product, rating, ml_price, llm_price):
+    # Handle None case for llm_price
+    if llm_price is None:
+        llm_price_str = "N/A (could not estimate)"
+        comparison_text = f"The ML model predicted ₹{ml_price:.2f} for this product. However, the AI price estimation failed to provide a reliable estimate."
+    else:
+        llm_price_str = f"₹{llm_price:.2f}"
+        comparison_text = f"The ML model predicted ₹{ml_price:.2f} for a product. A separate AI estimated its price to be ₹{llm_price:.2f}."
+    
     prompt = f"""
-    The ML model predicted ₹{ml_price:.2f} for a product. A separate AI estimated its price to be ₹{llm_price:.2f}.
+    {comparison_text}
     The product details are:
     - Name: {product_name}
     - Category: {category}
     - About: {about_product}
     - Rating: {rating}
     
-    Please explain the difference between the two predicted prices.
-    Explain why the ML model might have given a lower or higher prediction and why the LLM's price is a more realistic estimate for this product.
+    Please explain the difference between the two predicted prices (if both are available).
+    Explain why the ML model might have given a lower or higher prediction and provide insights about realistic pricing for this product.
+    If the AI price estimation failed, focus on explaining the ML model's prediction and what factors might influence the actual market price.
     """
     try:
         response = genai.GenerativeModel("gemini-1.5-flash").generate_content(prompt)
         return response.text
     except Exception as e:
-        return f"⚠️ Could not generate explanation: {e}"
+        return f"⚠ Could not generate explanation: {e}"
 
 # =======================
 # Function to get LLM-based price
@@ -61,13 +70,19 @@ def get_llm_price(product_name, category, about_product):
     """
     try:
         response = genai.GenerativeModel("gemini-1.5-flash").generate_content(prompt)
-        price_match = re.search(r'₹?(\d[\d,\.]*)', response.text)
+        # Improved regex to catch various number formats
+        price_match = re.search(r'₹?\s*(\d+(?:[,\.]\d+)*(?:\.\d{2})?)', response.text.strip())
         if price_match:
             price_str = price_match.group(1).replace(',', '')
             return float(price_str)
         else:
+            # Try to find any number in the response
+            number_match = re.search(r'(\d+(?:\.\d+)?)', response.text)
+            if number_match:
+                return float(number_match.group(1))
             return None
     except Exception as e:
+        st.error(f"Error in LLM price estimation: {e}")
         return None
 
 # =======================
@@ -117,7 +132,7 @@ with col1:
     # Predict button
     if st.button("🔮 Predict Price"):
         if not category or not product_name:
-            st.warning("⚠️ Please enter at least Product Name and Category.")
+            st.warning("⚠ Please enter at least Product Name and Category.")
         else:
             input_data = pd.DataFrame([{
                 "category": category,
@@ -136,8 +151,10 @@ with col1:
                 st.success(f"💰 ML Model Predicted Price: ₹{ml_prediction:,.2f}")
                 if llm_price is not None:
                     st.info(f"✨ AI Price Estimate: ₹{llm_price:,.2f}")
+                else:
+                    st.warning("⚠ AI Price Estimate: Could not generate estimate")
 
-                # Get and display the combined explanation
+                # Get and display the combined explanation (now handles None llm_price)
                 explanation = get_llm_explanation(product_name, category, about_product, rating, ml_prediction, llm_price)
                 st.info(f"🤖 Explanation:\n\n{explanation}")
                 
