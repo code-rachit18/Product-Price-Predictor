@@ -48,7 +48,63 @@ def get_llm_explanation(product_name, category, about_product, rating, ml_price,
         response = genai.GenerativeModel("gemini-1.5-flash").generate_content(prompt)
         return response.text
     except Exception as e:
+        error_str = str(e)
+        if "429" in error_str or "quota" in error_str.lower():
+            return get_fallback_explanation(product_name, category, about_product, rating, ml_price, llm_price)
         return f"⚠️ Could not generate explanation: {e}"
+
+# =======================
+# Fallback explanation when API quota is exceeded
+# =======================
+def get_fallback_explanation(product_name, category, about_product, rating, ml_price, llm_price):
+    """Provide a basic explanation when API quota is exceeded"""
+    
+    # Basic category-based price ranges (in INR)
+    category_ranges = {
+        "Electronics": {"min": 1000, "max": 100000},
+        "Toys & Games": {"min": 200, "max": 5000},
+        "Office Products": {"min": 100, "max": 20000},
+        "Home & Kitchen": {"min": 500, "max": 50000},
+        "Clothing": {"min": 300, "max": 10000},
+        "Books": {"min": 100, "max": 2000},
+        "Beauty & Personal Care": {"min": 200, "max": 5000},
+        "Home Improvement": {"min": 500, "max": 25000},
+        "Musical Instruments": {"min": 2000, "max": 50000}
+    }
+    
+    explanation = f"🤖 **Analysis of ML Prediction (API quota exceeded, using basic analysis):**\n\n"
+    explanation += f"**Predicted Price:** ₹{ml_price:.2f}\n\n"
+    
+    # Category analysis
+    if category in category_ranges:
+        cat_range = category_ranges[category]
+        if ml_price < cat_range["min"]:
+            explanation += f"📊 **Category Analysis:** The predicted price seems low for the {category} category, which typically ranges from ₹{cat_range['min']:,} to ₹{cat_range['max']:,}.\n\n"
+        elif ml_price > cat_range["max"]:
+            explanation += f"📊 **Category Analysis:** The predicted price is on the higher end for the {category} category, suggesting premium features.\n\n"
+        else:
+            explanation += f"📊 **Category Analysis:** The predicted price falls within the typical range for {category} products (₹{cat_range['min']:,} - ₹{cat_range['max']:,}).\n\n"
+    
+    # Rating analysis
+    if rating >= 4.5:
+        explanation += f"⭐ **Rating Impact:** High rating ({rating}/5) suggests good quality, which supports the predicted price.\n\n"
+    elif rating >= 3.5:
+        explanation += f"⭐ **Rating Impact:** Average rating ({rating}/5) indicates standard quality product.\n\n"
+    else:
+        explanation += f"⭐ **Rating Impact:** Lower rating ({rating}/5) might indicate budget pricing or quality concerns.\n\n"
+    
+    # Product name analysis
+    if any(word in product_name.lower() for word in ['premium', 'pro', 'deluxe', 'advanced']):
+        explanation += f"🏷️ **Product Analysis:** The name '{product_name}' suggests premium features, which may justify higher pricing.\n\n"
+    elif any(word in product_name.lower() for word in ['basic', 'budget', 'simple', 'mini']):
+        explanation += f"🏷️ **Product Analysis:** The name '{product_name}' suggests a budget or basic model, which aligns with competitive pricing.\n\n"
+    
+    if llm_price is not None:
+        explanation += f"💡 **Comparison:** The AI estimated ₹{llm_price:.2f}, showing a {'higher' if llm_price > ml_price else 'lower'} valuation than the ML model.\n\n"
+    
+    explanation += "**Note:** This is a basic analysis due to API quota limits. For detailed AI insights, please try again after the quota resets."
+    
+    return explanation
 
 # =======================
 # Function to get LLM-based price
@@ -92,8 +148,51 @@ def get_llm_price(product_name, category, about_product):
             return None
             
     except Exception as e:
+        error_str = str(e)
+        if "429" in error_str or "quota" in error_str.lower():
+            # Return a basic estimate when quota is exceeded
+            return get_fallback_price(product_name, category, about_product)
         st.warning(f"Error getting LLM price: {e}")
         return None
+
+# =======================
+# Fallback price estimation when API quota is exceeded
+# =======================
+def get_fallback_price(product_name, category, about_product):
+    """Provide a basic price estimate when API quota is exceeded"""
+    
+    # Basic category-based price ranges (in INR) - midpoint estimates
+    category_estimates = {
+        "Electronics": 15000,
+        "Toys & Games": 1500,
+        "Office Products": 2000,
+        "Home & Kitchen": 5000,
+        "Clothing": 1500,
+        "Books": 500,
+        "Beauty & Personal Care": 800,
+        "Home Improvement": 3000,
+        "Musical Instruments": 10000
+    }
+    
+    base_price = category_estimates.get(category, 1000)
+    
+    # Adjust based on product name keywords
+    name_lower = product_name.lower()
+    
+    # Premium indicators
+    if any(word in name_lower for word in ['premium', 'pro', 'deluxe', 'advanced', 'professional']):
+        base_price *= 2
+    elif any(word in name_lower for word in ['luxury', 'high-end', 'flagship']):
+        base_price *= 3
+    # Budget indicators
+    elif any(word in name_lower for word in ['basic', 'budget', 'simple', 'mini', 'compact']):
+        base_price *= 0.6
+    
+    # Brand-like adjustments (if product name suggests brand)
+    if any(word in name_lower for word in ['apple', 'samsung', 'sony', 'nike', 'adidas']):
+        base_price *= 1.5
+    
+    return round(base_price, 2)
 
 # =======================
 # Streamlit UI
@@ -101,6 +200,16 @@ def get_llm_price(product_name, category, about_product):
 st.set_page_config(page_title="E-Commerce Price Prediction", page_icon="🛒", layout="wide")
 st.title("🛒 E-Commerce Price Prediction Tool")
 st.write("Enter product details to get a predicted price and an AI-generated explanation.")
+
+# Add info about API limits
+with st.expander("ℹ️ About API Limits"):
+    st.info("""
+    **Gemini API Quota Information:**
+    - Free tier: 50 requests per day
+    - When quota is exceeded, the app uses fallback estimates
+    - Quota resets every 24 hours
+    - For unlimited access, consider upgrading your Gemini API plan
+    """)
 
 # Initialize session state for storing predictions
 if "predictions" not in st.session_state:
@@ -163,7 +272,11 @@ with col1:
 
                 # Display LLM price with proper None handling
                 if llm_price is not None:
-                    st.info(f"✨ AI Price Estimate: ₹{llm_price:,.2f}")
+                    # Check if this is a fallback estimate
+                    if hasattr(st.session_state, 'using_fallback_price'):
+                        st.info(f"💡 Fallback Price Estimate: ₹{llm_price:,.2f} (API quota exceeded)")
+                    else:
+                        st.info(f"✨ AI Price Estimate: ₹{llm_price:,.2f}")
                     llm_price_display = f"₹{llm_price:,.2f}"
                 else:
                     st.warning("⚠️ Could not get AI price estimate")
