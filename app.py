@@ -20,7 +20,7 @@ genai.configure(api_key=api_key)
 # =======================
 @st.cache_resource
 def load_model():
-    # Make sure price_predictor2.pkl is in the same directory as app.py
+    # Make sure price_predictor.pkl is in the same directory as app.py
     return joblib.load("price_predictor.pkl")
 
 model = load_model()
@@ -29,8 +29,11 @@ model = load_model()
 # Function to get LLM-based explanation
 # =======================
 def get_llm_explanation(product_name, category, about_product, rating, ml_price, llm_price):
+    # Handle None values for llm_price
+    llm_price_text = f"₹{llm_price:.2f}" if llm_price is not None else "unavailable"
+    
     prompt = f"""
-    The ML model predicted ₹{ml_price:.2f} for a product. A separate AI estimated its price to be ₹{llm_price:.2f}.
+    The ML model predicted ₹{ml_price:.2f} for a product. A separate AI estimated its price to be {llm_price_text}.
     The product details are:
     - Name: {product_name}
     - Category: {category}
@@ -39,6 +42,7 @@ def get_llm_explanation(product_name, category, about_product, rating, ml_price,
     
     Please explain the difference between the two predicted prices.
     Explain why the ML model might have given a lower or higher prediction and why the LLM's price is a more realistic estimate for this product.
+    If the LLM price is unavailable, focus on explaining the ML model's prediction based on the product details.
     """
     try:
         response = genai.GenerativeModel("gemini-1.5-flash").generate_content(prompt)
@@ -51,23 +55,44 @@ def get_llm_explanation(product_name, category, about_product, rating, ml_price,
 # =======================
 def get_llm_price(product_name, category, about_product):
     prompt = f"""
-    Based on the following product details, provide a realistic price estimate in Indian Rupees (₹) as a single number. Do not include any text or symbols other than the number itself.
+    Based on the following product details, provide a realistic price estimate in Indian Rupees (₹). 
+    Please respond with only a number (no currency symbols, no text, just the numeric value).
     
     Product Name: {product_name}
     Category: {category}
     About: {about_product}
     
-    Example output: 1500.00
+    Example output format: 1500.00
     """
     try:
         response = genai.GenerativeModel("gemini-1.5-flash").generate_content(prompt)
-        price_match = re.search(r'₹?(\d[\d,\.]*)', response.text)
-        if price_match:
-            price_str = price_match.group(1).replace(',', '')
-            return float(price_str)
-        else:
+        # More robust price extraction
+        price_text = response.text.strip()
+        
+        # Try multiple regex patterns to extract price
+        patterns = [
+            r'₹?(\d+(?:[,\.]\d+)*(?:\.\d{2})?)',  # Match with or without ₹, with commas/dots
+            r'(\d+(?:\.\d+)?)',  # Simple decimal number
+            r'(\d+)'  # Just digits
+        ]
+        
+        for pattern in patterns:
+            price_match = re.search(pattern, price_text)
+            if price_match:
+                price_str = price_match.group(1).replace(',', '')
+                try:
+                    return float(price_str)
+                except ValueError:
+                    continue
+        
+        # If no pattern matches, try to convert the entire response
+        try:
+            return float(price_text.replace('₹', '').replace(',', '').strip())
+        except:
             return None
+            
     except Exception as e:
+        st.warning(f"Error getting LLM price: {e}")
         return None
 
 # =======================
@@ -128,32 +153,48 @@ with col1:
             }])
 
             try:
-                # Make predictions from both models
+                # Make prediction from ML model
                 ml_prediction = model.predict(input_data)[0]
-                llm_price = get_llm_price(product_name, category, about_product)
-
-                # Display prices
                 st.success(f"💰 ML Model Predicted Price: ₹{ml_prediction:,.2f}")
+                
+                # Get LLM price with proper error handling
+                with st.spinner("Getting AI price estimate..."):
+                    llm_price = get_llm_price(product_name, category, about_product)
+
+                # Display LLM price with proper None handling
                 if llm_price is not None:
                     st.info(f"✨ AI Price Estimate: ₹{llm_price:,.2f}")
+                    llm_price_display = f"₹{llm_price:,.2f}"
+                else:
+                    st.warning("⚠️ Could not get AI price estimate")
+                    llm_price_display = "N/A"
 
                 # Get and display the combined explanation
-                explanation = get_llm_explanation(product_name, category, about_product, rating, ml_prediction, llm_price)
-                st.info(f"🤖 Explanation:\n\n{explanation}")
+                with st.spinner("Generating explanation..."):
+                    explanation = get_llm_explanation(product_name, category, about_product, rating, ml_prediction, llm_price)
+                    st.info(f"🤖 Explanation:\n\n{explanation}")
                 
                 # Store prediction in session state
                 st.session_state.predictions.append({
                     "Product": product_name,
                     "Category": category,
                     "ML Price": f"₹{ml_prediction:,.2f}",
-                    "LLM Price": f"₹{llm_price:,.2f}" if llm_price is not None else "N/A",
+                    "LLM Price": llm_price_display,
                     "Rating": rating
                 })
             except Exception as e:
                 st.error(f"An error occurred during prediction: {e}")
+                # Add more detailed error information for debugging
+                import traceback
+                st.error(f"Detailed error: {traceback.format_exc()}")
 
 with col2:
     st.header("Previous Predictions")
+    # Add a clear button for predictions
+    if st.session_state.predictions and st.button("Clear History"):
+        st.session_state.predictions = []
+        st.rerun()
+    
     # Display previous predictions in a table
     if st.session_state.predictions:
         df_predictions = pd.DataFrame(st.session_state.predictions)
