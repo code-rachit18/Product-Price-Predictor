@@ -33,16 +33,14 @@ def get_llm_explanation(product_name, category, about_product, rating, ml_price,
     llm_price_text = f"₹{llm_price:.2f}" if llm_price is not None else "unavailable"
     
     prompt = f"""
-    The ML model predicted ₹{ml_price:.2f} for a product. A separate AI estimated its price to be {llm_price_text}.
-    The product details are:
-    - Name: {product_name}
-    - Category: {category}
-    - About: {about_product}
-    - Rating: {rating}
+    Give a brief 2-3 sentence explanation for these price predictions:
+    - ML Model: ₹{ml_price:.2f}
+    - AI Estimate: {llm_price_text}
     
-    Please explain the difference between the two predicted prices.
-    Explain why the ML model might have given a lower or higher prediction and why the LLM's price is a more realistic estimate for this product.
-    If the LLM price is unavailable, focus on explaining the ML model's prediction based on the product details.
+    Product: {product_name} ({category})
+    Rating: {rating}/5
+    
+    Keep it simple and concise. Just explain which price seems more reasonable and why.
     """
     try:
         response = genai.GenerativeModel("gemini-1.5-flash").generate_content(prompt)
@@ -57,52 +55,25 @@ def get_llm_explanation(product_name, category, about_product, rating, ml_price,
 # Fallback explanation when API quota is exceeded
 # =======================
 def get_fallback_explanation(product_name, category, about_product, rating, ml_price, llm_price):
-    """Provide a basic explanation when API quota is exceeded"""
+    """Provide a simple explanation when API quota is exceeded"""
     
-    # Basic category-based price ranges (in INR)
-    category_ranges = {
-        "Electronics": {"min": 1000, "max": 100000},
-        "Toys & Games": {"min": 200, "max": 5000},
-        "Office Products": {"min": 100, "max": 20000},
-        "Home & Kitchen": {"min": 500, "max": 50000},
-        "Clothing": {"min": 300, "max": 10000},
-        "Books": {"min": 100, "max": 2000},
-        "Beauty & Personal Care": {"min": 200, "max": 5000},
-        "Home Improvement": {"min": 500, "max": 25000},
-        "Musical Instruments": {"min": 2000, "max": 50000}
-    }
-    
-    explanation = f"🤖 **Analysis of ML Prediction (API quota exceeded, using basic analysis):**\n\n"
-    explanation += f"**Predicted Price:** ₹{ml_price:.2f}\n\n"
-    
-    # Category analysis
-    if category in category_ranges:
-        cat_range = category_ranges[category]
-        if ml_price < cat_range["min"]:
-            explanation += f"📊 **Category Analysis:** The predicted price seems low for the {category} category, which typically ranges from ₹{cat_range['min']:,} to ₹{cat_range['max']:,}.\n\n"
-        elif ml_price > cat_range["max"]:
-            explanation += f"📊 **Category Analysis:** The predicted price is on the higher end for the {category} category, suggesting premium features.\n\n"
-        else:
-            explanation += f"📊 **Category Analysis:** The predicted price falls within the typical range for {category} products (₹{cat_range['min']:,} - ₹{cat_range['max']:,}).\n\n"
-    
-    # Rating analysis
-    if rating >= 4.5:
-        explanation += f"⭐ **Rating Impact:** High rating ({rating}/5) suggests good quality, which supports the predicted price.\n\n"
-    elif rating >= 3.5:
-        explanation += f"⭐ **Rating Impact:** Average rating ({rating}/5) indicates standard quality product.\n\n"
-    else:
-        explanation += f"⭐ **Rating Impact:** Lower rating ({rating}/5) might indicate budget pricing or quality concerns.\n\n"
-    
-    # Product name analysis
-    if any(word in product_name.lower() for word in ['premium', 'pro', 'deluxe', 'advanced']):
-        explanation += f"🏷️ **Product Analysis:** The name '{product_name}' suggests premium features, which may justify higher pricing.\n\n"
-    elif any(word in product_name.lower() for word in ['basic', 'budget', 'simple', 'mini']):
-        explanation += f"🏷️ **Product Analysis:** The name '{product_name}' suggests a budget or basic model, which aligns with competitive pricing.\n\n"
+    explanation = f"**Quick Analysis:**\n\n"
+    explanation += f"ML Model predicted ₹{ml_price:.2f}"
     
     if llm_price is not None:
-        explanation += f"💡 **Comparison:** The AI estimated ₹{llm_price:.2f}, showing a {'higher' if llm_price > ml_price else 'lower'} valuation than the ML model.\n\n"
+        if llm_price > ml_price * 1.5:
+            explanation += f", while AI estimated ₹{llm_price:.2f}. The AI price seems more realistic for this {category.lower()} product."
+        elif llm_price < ml_price * 0.7:
+            explanation += f", while AI estimated ₹{llm_price:.2f}. The ML price might be overestimating for this product."
+        else:
+            explanation += f", and AI estimated ₹{llm_price:.2f}. Both prices are fairly close, suggesting good agreement."
+    else:
+        explanation += f" for this {category.lower()} product."
     
-    explanation += "**Note:** This is a basic analysis due to API quota limits. For detailed AI insights, please try again after the quota resets."
+    if rating >= 4.0:
+        explanation += f" The high rating ({rating}/5) supports quality pricing."
+    elif rating < 3.0:
+        explanation += f" The lower rating ({rating}/5) might justify budget pricing."
     
     return explanation
 
