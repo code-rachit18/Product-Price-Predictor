@@ -32,19 +32,19 @@ The model is trained on a curated dataset and designed to generalize across vari
 ---
 
 ## 📂 Project Structure
-e-commerce-price-prediction/
-├── data/                  # Raw and processed datasets
-├── notebooks/             # Jupyter notebooks for EDA & experimentation
-├── src/                   
-│   ├── preprocess.py      # Data preprocessing & feature engineering
-│   ├── train.py           # Model training scripts
-│   └── predict.py         # Prediction pipeline
-├── requirements.txt       # Project dependencies
-├── README.md              # Project documentation
-└── LICENSE                # License file
+
+    e-commerce-price-prediction/
+    ├── data/                  # Raw and processed datasets
+    ├── notebooks/             # Jupyter notebooks for EDA & experimentation
+    ├── src/                   
+    │   ├── preprocess.py      # Data preprocessing & feature engineering
+    │   ├── train.py           # Model training scripts
+    │   └── predict.py         # Prediction pipeline
+    ├── requirements.txt       # Project dependencies
+    ├── README.md              # Project documentation
+    └── LICENSE                # License file
 
 ---
-
 
 ## ⚙️ Installation-
 1️⃣ Clone the Repository
@@ -85,20 +85,10 @@ Open a Pull Request
 
 🛠️ Troubleshooting
 Common Issues-
-API Key Error
-
-    Ensure your Gemini API key is correctly set in the .env file
-    Verify the API key is active and has sufficient quota
-
-File Upload Issues
-
-    Check file size limits (Streamlit default: 200MB)
-    Ensure file formats are supported (PDF, DOCX, TXT)
-
-Dependencies Error
-
-    Run pip install -r requirements.txt to install all dependencies
-    Consider using a virtual environment
+Ensure your Gemini API key is correctly set in the .env file
+Verify the API key is active and has sufficient quota
+Run pip install -r requirements.txt to install all dependencies
+Consider using a virtual environment
 
 ---
 
@@ -107,6 +97,8 @@ Dependencies Error
 1) Google Gemini AI for powerful question generation
 2) Streamlit for the amazing web app framework
 3) Contributors and users who provide feedback
+
+---
 
 📞 Support-
 If you encounter any issues or have questions:
@@ -120,6 +112,6 @@ Made with ❤️ using Streamlit & Google Gemini AI
 📝 License
 This project is licensed under the MIT License – see the LICENSE file for details
 
+---
+
 ⭐ If you find this project useful, don’t forget to star the repo!
-
-
