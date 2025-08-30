@@ -101,16 +101,11 @@ Common Issues-
 ---
 
 📞 Support-
+
 If you encounter any issues or have questions:
-Open an issue on GitHub
-Check the troubleshooting section
-Review the documentation
-Made with ❤️ using Streamlit & Google Gemini AI
-
----
-
-📝 License
-This project is licensed under the MIT License – see the LICENSE file for details
+- Open an issue on GitHub
+- Check the troubleshooting section
+- Review the documentation
 
 ---
 
