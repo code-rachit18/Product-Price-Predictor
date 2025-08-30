@@ -75,28 +75,28 @@ Predicted Price: ₹78,999
 
 🤝 Contributing
 Contributions are welcome!
-Fork the repository
-Create a feature branch (git checkout -b feature-name)
-Commit changes (git commit -m 'Add feature')
-Push to branch (git push origin feature-name)
-Open a Pull Request
+- Fork the repository
+- Create a feature branch (git checkout -b feature-name)
+- Commit changes (git commit -m 'Add feature')
+- Push to branch (git push origin feature-name)
+- Open a Pull Request
 
 ---
 
 🛠️ Troubleshooting
 Common Issues-
-Ensure your Gemini API key is correctly set in the .env file
-Verify the API key is active and has sufficient quota
-Run pip install -r requirements.txt to install all dependencies
-Consider using a virtual environment
+- Ensure your Gemini API key is correctly set in the .env file
+- Verify the API key is active and has sufficient quota
+- Run pip install -r requirements.txt to install all dependencies
+- Consider using a virtual environment
 
 ---
 
 🌟 Acknowledgments-
 
-1) Google Gemini AI for powerful question generation
-2) Streamlit for the amazing web app framework
-3) Contributors and users who provide feedback
+- Google Gemini AI for powerful question generation
+- Streamlit for the amazing web app framework
+- Contributors and users who provide feedback
 
 ---
 
